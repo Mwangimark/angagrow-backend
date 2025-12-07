@@ -6,14 +6,14 @@ class AnalysisSession(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     # Aggregated metrics (calculated after all images are processed)
-    avg_canopy_cover = models.FloatField(null=True, blank=True)
-    avg_stress_percentage = models.FloatField(null=True, blank=True)
-    avg_yield_estimate = models.FloatField(null=True, blank=True)
+    canopy_cover = models.FloatField(null=True, blank=True)
+    stress_percentage = models.FloatField(null=True, blank=True)
+    yield_estimate = models.FloatField(null=True, blank=True)
 
     # NDVI-like indices (averages)
-    avg_vari = models.FloatField(null=True, blank=True)
-    avg_gli = models.FloatField(null=True, blank=True)
-    avg_exg = models.FloatField(null=True, blank=True)
+    vari = models.FloatField(null=True, blank=True)
+    gli = models.FloatField(null=True, blank=True)
+    exg = models.FloatField(null=True, blank=True)
 
     def __str__(self):
         return f"Session {self.id} - {self.created_at}"
