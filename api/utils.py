@@ -13,9 +13,26 @@ def analyze_drone_image(image_path):
     B = arr[:, :, 2].astype(float)
 
     eps = 1e-6  # avoid division by zero
+    # Calculate VARI with clipping to handle edge cases
+    denominator = G + R - B
+    
+    # Add safety check: if denominator is <= 0, set VARI to 0 or clip
+    valid_mask = denominator > eps
+    VARI = np.zeros_like(denominator)
+    
+    # Only calculate where denominator is valid
+    VARI[valid_mask] = (G[valid_mask] - R[valid_mask]) / denominator[valid_mask]
+    
+    # For invalid pixels, set to 0 (neutral)
+    VARI[~valid_mask] = 0
+    
+    # Clip to valid range [-1, 1]
+    VARI = np.clip(VARI, -1, 1)
+    
+    # Take mean
+    VARI_mean = np.mean(VARI)
 
-    # Vegetation indices
-    VARI = np.mean((G - R) / (G + R - B + eps))
+
     EXG = np.mean(2 * G - R - B)
     GLI = np.mean((2 * G - R - B) / (2 * G + R + B + eps))
 
@@ -37,7 +54,7 @@ def analyze_drone_image(image_path):
     stress_pct = (brown_pixels / total_pixels) * 100
 
     return {
-        "vari": round(VARI, 3),
+        "vari": round(VARI_mean, 3),
         "exg": round(EXG, 3),
         "gli": round(GLI, 3),
         "canopy_pct": round(canopy_pct, 2),
@@ -124,7 +141,8 @@ def generate_recommendations(analysis_data):
     recommendations = []
 
     # --- Canopy coverage check ---
-    canopy = analysis_data.get("avg_canopy_cover", 0)
+    canopy = analysis_data.get("canopy_cover", 0)
+    print(f"Canopy value for recommendations: {canopy}")
     if canopy < 40:
         recommendations.append({
             "title": "Low Canopy Coverage",
@@ -147,8 +165,9 @@ def generate_recommendations(analysis_data):
             ]
         })
 
+
     # --- Stress level check ---
-    stress = analysis_data.get("avg_stress_percentage", 0)
+    stress = analysis_data.get("stress_percentage", 0)
     if stress > 15:
         recommendations.append({
             "title": "High Vegetation Stress",
@@ -172,9 +191,8 @@ def generate_recommendations(analysis_data):
         })
 
     # --- VARI index check (green vegetation health indicator) ---
-    vari = analysis_data.get("avg_vari", 0)
-    print(f"VARI value for recommendations: {vari}")
-    if vari < 0.2:
+    vari = analysis_data.get("vari", 0)
+    if vari < 0.1:
         recommendations.append({
             "title": "Low Vegetation Index (VARI)",
             "severity": "warning",
@@ -197,7 +215,7 @@ def generate_recommendations(analysis_data):
         })
 
         # --- EXG check (chlorophyll & greenness) ---
-    exg = analysis_data.get("avg_exg", 0)
+    exg = analysis_data.get("exg", 0)
     if exg < 20:
         recommendations.append({
             "title": "Low Greenness (EXG)",
@@ -221,7 +239,7 @@ def generate_recommendations(analysis_data):
         })
 
         # --- GLI check (leaf vigor) ---
-    gli = analysis_data.get("avg_gli", 0)
+    gli = analysis_data.get("gli", 0)
     if gli < 0.1:
         recommendations.append({
             "title": "Weak Leaf Vigor",
@@ -245,7 +263,7 @@ def generate_recommendations(analysis_data):
         })
     
         # --- Yield estimate check ---
-    yield_est = analysis_data.get("avg_yield_estimate", 0)
+    yield_est = analysis_data.get("yield_estimate", 0)
     if yield_est < 2:
         recommendations.append({
             "title": "Low Yield Projection",
@@ -279,7 +297,7 @@ def generate_recommendations(analysis_data):
         })
     
         # --- Weed presence probability ---
-    if vari < 0.2 and exg > 40:
+    if vari < 0.1 and exg > 40:
         recommendations.append({
             "title": "Possible Weed Presence",
             "severity": "warning",
